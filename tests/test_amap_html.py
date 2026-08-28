@@ -32,13 +32,15 @@ def test_build_amap_html_uses_official_amap_runtime_and_json_payload() -> None:
     assert "gridSize:60" in html
     assert "maxZoom:18" in html
     assert "zoomOnClick:true" in html
+    assert "clusterByZoomChange:true" in html
     assert "averageCenter:true" in html
     assert "CLUSTER_EXPAND_ZOOM" not in html
     assert "cluster.setMap(null)" not in html
     assert "map.add(individualMarkers)" not in html
     assert "window.__AMAP_MAP__" in html
     assert "window.__AMAP_CLUSTER__" in html
-    assert "zoom:11,center:[101.778,36.617]" in html
+    assert "zoom:AMAP_DATA.length>1 ? 5 : 11,center:initialCenter" in html
+    assert "map.setBounds(bounds,true,[80,80,80,80])" in html
     assert "new AMap.InfoWindow" in html
     assert "context.marker.on('click'" in html
     assert "Array.isArray(context.data)?context.data[0]?.data" in html

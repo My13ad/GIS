@@ -102,10 +102,11 @@ th{{color:#5a6b7b;white-space:nowrap}}
 const AMAP_DATA={payload_json};
 window.__AMAP_READY__=false; window.__AMAP_ERROR__=null;
 try {{
-  const map=new AMap.Map('amap-map',{{zoom:11,center:[101.778,36.617]}}); window.__AMAP_MAP__=map;
+  const initialCenter=AMAP_DATA.length ? [AMAP_DATA.reduce((sum,item)=>sum+item.longitude,0)/AMAP_DATA.length,AMAP_DATA.reduce((sum,item)=>sum+item.latitude,0)/AMAP_DATA.length] : [101.778,36.617];
+  const map=new AMap.Map('amap-map',{{zoom:AMAP_DATA.length>1 ? 5 : 11,center:initialCenter}}); window.__AMAP_MAP__=map;
   map.addControl(new AMap.ToolBar()); map.addControl(new AMap.Scale()); map.addControl(new AMap.MapType());
    const clusterData=AMAP_DATA.map(item=>({{lnglat:[item.longitude,item.latitude],weight:item.weight,data:item}})); window.__AMAP_DATA__=clusterData;
-   const cluster=new AMap.MarkerCluster(map,clusterData,{{gridSize:60,maxZoom:18,zoomOnClick:true,averageCenter:true,
+   const cluster=new AMap.MarkerCluster(map,clusterData,{{gridSize:60,maxZoom:18,zoomOnClick:true,averageCenter:true,clusterByZoomChange:true,
      renderClusterMarker:context=>{{const count=Number(context.count||0); context.marker.setContent(`<div class="gis-cluster" title="${{count}} 个点位">${{count}}</div>`); context.marker.setAnchor('center');}},
      renderMarker:context=>{{const item=Array.isArray(context.data)?context.data[0]?.data:context.data?.data??context.data; if(item?.color){{context.marker.setContent(`<div class="gis-pin" style="background:${{item.color}}" title="${{item.problem_type||'问题点位'}}"><span class="gis-pin-dot"></span></div>`); context.marker.setAnchor('bottom-center');}} if(item?.popup){{context.marker.setTitle(item.problem_type); context.marker.on('click',()=>new AMap.InfoWindow({{content:item.popup,offset:[0,-30]}}).open(map,context.marker.getPosition()));}}}}}}); window.__AMAP_CLUSTER__=cluster;
    if (AMAP_DATA.length === 1) {{
