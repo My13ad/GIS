@@ -87,7 +87,15 @@ def build_amap_html(
     security = f"window._AMapSecurityConfig={{securityJsCode:{json.dumps(config.security_js_code)}}};"
     return f'''<!DOCTYPE html>
 <html lang="zh-CN"><head><meta charset="utf-8"><title>盲道问题GIS标注图</title>
-<style>html,body,#amap-map{{width:100%;height:100%;margin:0}}table{{border-collapse:collapse;font:13px sans-serif}}th,td{{padding:2px 8px;text-align:left;vertical-align:top}}th{{color:#5a6b7b;white-space:nowrap}}</style>
+<style>
+html,body,#amap-map{{width:100%;height:100%;margin:0}}
+table{{border-collapse:collapse;font:13px sans-serif}}
+th,td{{padding:2px 8px;text-align:left;vertical-align:top}}
+th{{color:#5a6b7b;white-space:nowrap}}
+.gis-pin{{position:relative;width:24px;height:24px;border:2px solid #fff;border-radius:50% 50% 50% 0;box-sizing:border-box;box-shadow:0 2px 5px rgba(15,23,42,.35);transform:rotate(-45deg);}}
+.gis-pin-dot{{position:absolute;left:6px;top:6px;width:8px;height:8px;border-radius:50%;background:#fff;}}
+.gis-cluster{{display:flex;align-items:center;justify-content:center;width:34px;height:34px;border:2px solid #fff;border-radius:50%;box-sizing:border-box;background:#0f766e;color:#fff;font:700 12px/1 Arial,sans-serif;box-shadow:0 2px 6px rgba(15,23,42,.35);}}
+</style>
 <script>{security}</script>
 <script src="https://webapi.amap.com/maps?v=2.0&key={safe_key}&plugin=AMap.MarkerCluster,AMap.HeatMap,AMap.ToolBar,AMap.Scale,AMap.MapType"></script>
 </head><body><div id="amap-map"></div><script>
@@ -97,9 +105,11 @@ try {{
   const map=new AMap.Map('amap-map',{{zoom:11,center:[101.778,36.617]}}); window.__AMAP_MAP__=map;
   map.addControl(new AMap.ToolBar()); map.addControl(new AMap.Scale()); map.addControl(new AMap.MapType());
    const clusterData=AMAP_DATA.map(item=>({{lnglat:[item.longitude,item.latitude],count:item.weight,data:item}})); window.__AMAP_DATA__=clusterData;
-   const cluster=new AMap.MarkerCluster(map,clusterData,{{gridSize:60,maxZoom:20,zoomOnClick:true,averageCenter:true,renderMarker:context=>{{const item=Array.isArray(context.data)?context.data[0]?.data:context.data?.data??context.data; if(item?.color){{context.marker.setContent(`<div style="width:14px;height:14px;border:2px solid white;border-radius:50%;background:${{item.color}};box-shadow:0 1px 3px #555"></div>`);}} if(item?.popup){{context.marker.setTitle(item.problem_type); context.marker.on('click',()=>new AMap.InfoWindow({{content:item.popup,offset:[0,-30]}}).open(map,context.marker.getPosition()));}}}}}}); window.__AMAP_CLUSTER__=cluster;
+   const cluster=new AMap.MarkerCluster(map,clusterData,{{gridSize:60,maxZoom:20,zoomOnClick:true,averageCenter:true,
+     renderClusterMarker:context=>{{const count=Number(context.count||0); context.marker.setContent(`<div class="gis-cluster" title="${{count}} 个点位">${{count}}</div>`); context.marker.setAnchor('center');}},
+     renderMarker:context=>{{const item=Array.isArray(context.data)?context.data[0]?.data:context.data?.data??context.data; if(item?.color){{context.marker.setContent(`<div class="gis-pin" style="background:${{item.color}}" title="${{item.problem_type||'问题点位'}}"><span class="gis-pin-dot"></span></div>`); context.marker.setAnchor('bottom-center');}} if(item?.popup){{context.marker.setTitle(item.problem_type); context.marker.on('click',()=>new AMap.InfoWindow({{content:item.popup,offset:[0,-30]}}).open(map,context.marker.getPosition()));}}}}}}); window.__AMAP_CLUSTER__=cluster;
    if (AMAP_DATA.length) map.setFitView();
-  const heatmap=new AMap.HeatMap(map,{{radius:25,opacity:[0,0.8]}}); heatmap.setDataSet({{data:AMAP_DATA.map(item=>({{lng:item.longitude,lat:item.latitude,count:item.weight}})),max:1}});
+  const heatmap=new AMap.HeatMap(map,{{radius:25,opacity:[0,0.8]}}); heatmap.setDataSet({{data:AMAP_DATA.map(item=>({{lng:item.longitude,lat:item.latitude,count:item.weight}})),max:1}}); heatmap.hide(); window.__AMAP_HEATMAP__=heatmap;
    window.__setExportView=(city)=>{{const views={{'西宁':[101.778,36.617],'格尔木':[94.903,36.407]}}; const view=views[city]; if(!view) throw new Error('Unknown city'); map.setZoomAndCenter(13,view);}}; window.__AMAP_READY__=true;
 }} catch (error) {{ window.__AMAP_ERROR__=String(error); }}
 </script></body></html>'''

@@ -75,6 +75,10 @@ IMAGE_ROOT: Final = DATA_DIR / "blind_path_issues.images"
 IMAGE_SIDECAR: Final = DATA_DIR / "blind_path_issues.images.json"
 MAP_HEIGHT: Final = 680
 GCJ02_LABEL: Final = "GCJ-02"
+STORE_CACHE_KEY: Final = "_gis_store_cache"
+STORE_CACHE_CONFIG_KEY: Final = "_gis_store_cache_config"
+STORE_SEEDED_CONFIG_KEY: Final = "_gis_store_seeded_config"
+CANONICAL_ACTIVE_CACHE_KEY: Final = "_gis_canonical_active"
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,12 +140,27 @@ def data_store() -> RowStore:
 
 def ensure_data_store() -> RowStore:
     """Create the configured store and seed it once from the explicit CSV."""
-    if DATABASE_URL:
+    cache_config = ("postgres", DATABASE_URL) if DATABASE_URL else ("sqlite", str(CANONICAL_DB))
+    cached_config = st.session_state.get(STORE_CACHE_CONFIG_KEY)
+    cached_store = st.session_state.get(STORE_CACHE_KEY)
+    if cached_config == cache_config and isinstance(cached_store, (SqliteRowStore, PostgresRowStore)):
+        store = cached_store
+    elif DATABASE_URL:
         store = postgres_store()
-        migrate_csv_to_postgres(store, CANONICAL_CSV)
+        st.session_state[STORE_CACHE_KEY] = store
+        st.session_state[STORE_CACHE_CONFIG_KEY] = cache_config
     else:
         store = sqlite_store()
-        migrate_csv_to_sqlite(store, CANONICAL_CSV)
+        st.session_state[STORE_CACHE_KEY] = store
+        st.session_state[STORE_CACHE_CONFIG_KEY] = cache_config
+
+    # Avoid repopulating an intentionally emptied table on every rerun.
+    if st.session_state.get(STORE_SEEDED_CONFIG_KEY) != cache_config:
+        if DATABASE_URL:
+            migrate_csv_to_postgres(store, CANONICAL_CSV)
+        else:
+            migrate_csv_to_sqlite(store, CANONICAL_CSV)
+        st.session_state[STORE_SEEDED_CONFIG_KEY] = cache_config
     return store
 
 
@@ -158,8 +177,12 @@ def canonical_payload() -> bytes:
 def prepare_canonical_active() -> ActiveMap:
     """Prepare the configured canonical snapshot through the reusable map workflow."""
     payload = canonical_payload()
+    fingerprint = sha256(payload).hexdigest()
+    cached = st.session_state.get(CANONICAL_ACTIVE_CACHE_KEY)
+    if isinstance(cached, ActiveMap) and cached.fingerprint == fingerprint:
+        return cached
     attachments = read_image_snapshot(IMAGE_SIDECAR)
-    return ActiveMap(
+    active = ActiveMap(
         CANONICAL_CSV.name,
         "本地数据",
         payload,
@@ -169,14 +192,17 @@ def prepare_canonical_active() -> ActiveMap:
             image_root=IMAGE_ROOT,
             require_both_cities=False,
         ),
-        sha256(payload).hexdigest(),
+        fingerprint,
     )
+    st.session_state[CANONICAL_ACTIVE_CACHE_KEY] = active
+    return active
 
 
 def invalidate_render_cache() -> None:
     """Forget derived map and PNG artifacts after a local mutation."""
     st.session_state.pop("png_cache", None)
     st.session_state.pop("active_map", None)
+    st.session_state.pop(CANONICAL_ACTIVE_CACHE_KEY, None)
 
 
 def load_management_rows() -> tuple[GisRow, ...]:
