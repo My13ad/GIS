@@ -104,11 +104,18 @@ window.__AMAP_READY__=false; window.__AMAP_ERROR__=null;
 try {{
   const map=new AMap.Map('amap-map',{{zoom:11,center:[101.778,36.617]}}); window.__AMAP_MAP__=map;
   map.addControl(new AMap.ToolBar()); map.addControl(new AMap.Scale()); map.addControl(new AMap.MapType());
-   const clusterData=AMAP_DATA.map(item=>({{lnglat:[item.longitude,item.latitude],count:item.weight,data:item}})); window.__AMAP_DATA__=clusterData;
-   const cluster=new AMap.MarkerCluster(map,clusterData,{{gridSize:60,maxZoom:20,zoomOnClick:true,averageCenter:true,
+   const clusterData=AMAP_DATA.map(item=>({{lnglat:[item.longitude,item.latitude],weight:item.weight,data:item}})); window.__AMAP_DATA__=clusterData;
+   const cluster=new AMap.MarkerCluster(map,clusterData,{{gridSize:60,maxZoom:18,zoomOnClick:true,averageCenter:true,
      renderClusterMarker:context=>{{const count=Number(context.count||0); context.marker.setContent(`<div class="gis-cluster" title="${{count}} 个点位">${{count}}</div>`); context.marker.setAnchor('center');}},
      renderMarker:context=>{{const item=Array.isArray(context.data)?context.data[0]?.data:context.data?.data??context.data; if(item?.color){{context.marker.setContent(`<div class="gis-pin" style="background:${{item.color}}" title="${{item.problem_type||'问题点位'}}"><span class="gis-pin-dot"></span></div>`); context.marker.setAnchor('bottom-center');}} if(item?.popup){{context.marker.setTitle(item.problem_type); context.marker.on('click',()=>new AMap.InfoWindow({{content:item.popup,offset:[0,-30]}}).open(map,context.marker.getPosition()));}}}}}}); window.__AMAP_CLUSTER__=cluster;
-   if (AMAP_DATA.length) map.setFitView();
+   if (AMAP_DATA.length === 1) {{
+     map.setZoomAndCenter(15,[AMAP_DATA[0].longitude,AMAP_DATA[0].latitude],true);
+   }} else if (AMAP_DATA.length > 1) {{
+     const longitudes=AMAP_DATA.map(item=>item.longitude); const latitudes=AMAP_DATA.map(item=>item.latitude);
+     const bounds=new AMap.Bounds([Math.min(...longitudes),Math.min(...latitudes)],[Math.max(...longitudes),Math.max(...latitudes)]);
+     map.setBounds(bounds,true,[80,80,80,80]);
+     if (map.getZoom() > 16) map.setZoom(16,true);
+   }}
   const heatmap=new AMap.HeatMap(map,{{radius:25,opacity:[0,0.8]}}); heatmap.setDataSet({{data:AMAP_DATA.map(item=>({{lng:item.longitude,lat:item.latitude,count:item.weight}})),max:1}}); heatmap.hide(); window.__AMAP_HEATMAP__=heatmap;
    window.__setExportView=(city)=>{{const views={{'西宁':[101.778,36.617],'格尔木':[94.903,36.407]}}; const view=views[city]; if(!view) throw new Error('Unknown city'); map.setZoomAndCenter(13,view);}}; window.__AMAP_READY__=true;
 }} catch (error) {{ window.__AMAP_ERROR__=String(error); }}

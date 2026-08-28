@@ -28,9 +28,9 @@ def test_build_amap_html_uses_official_amap_runtime_and_json_payload() -> None:
     assert "new AMap.Map" in html
     assert "new AMap.MarkerCluster" in html
     assert "window.__AMAP_DATA__=clusterData" in html
-    assert "const clusterData=AMAP_DATA.map(item=>({lnglat:[item.longitude,item.latitude],count:item.weight,data:item}))" in html
+    assert "const clusterData=AMAP_DATA.map(item=>({lnglat:[item.longitude,item.latitude],weight:item.weight,data:item}))" in html
     assert "gridSize:60" in html
-    assert "maxZoom:20" in html
+    assert "maxZoom:18" in html
     assert "zoomOnClick:true" in html
     assert "averageCenter:true" in html
     assert "CLUSTER_EXPAND_ZOOM" not in html
@@ -116,5 +116,5 @@ def test_build_amap_html_uses_payload_values_and_deterministic_unknown_fallbacks
     assert '"severity":"紧急"' in html
     assert '"color":"gray"' in html
     assert '"weight":0.5' in html
-    assert "count:item.weight" in html
+    assert "weight:item.weight" in html
     assert "background:${item.color}" in html
