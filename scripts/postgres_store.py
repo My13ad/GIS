@@ -162,12 +162,13 @@ class PostgresRowStore:
             with self._connect() as connection:
                 connection.execute("DELETE FROM gis_rows")
                 if values:
-                    connection.executemany(
-                        "INSERT INTO gis_rows (id, city, district, street, longitude, latitude, "
-                        "problem_type, subtype, severity, confidence, description, detected_at, "
-                        "data_source, position) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
-                        values,
-                    )
+                    with connection.cursor() as cursor:
+                        cursor.executemany(
+                            "INSERT INTO gis_rows (id, city, district, street, longitude, latitude, "
+                            "problem_type, subtype, severity, confidence, description, detected_at, "
+                            "data_source, position) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                            values,
+                        )
         except PostgresStoreError:
             raise
         except Exception as error:
