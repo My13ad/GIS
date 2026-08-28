@@ -1,0 +1,6 @@
+streamlit==1.61.1
+psycopg[binary]>=3.1,<4
+pytest
+matplotlib
+pillow
+playwright

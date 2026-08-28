@@ -1,0 +1,13 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.streamlit/secrets.toml
+.env
+data/gis.sqlite3
+data/*.images.json
+data/*.images/
+output/
+.ruff_cache/
+.mypy_cache/
+*.pyc
+.env
