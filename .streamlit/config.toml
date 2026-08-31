@@ -9,11 +9,6 @@ font = "sans serif"
 [server]
 maxUploadSize = 5
 headless = true
-# Streamlit Community Cloud embeds the app behind a routed iframe.  The
-# uploader request is already scoped to the app session; these switches avoid
-# the proxy rejecting its PUT request before Streamlit receives the file.
-enableCORS = false
-enableXsrfProtection = false
 
 [browser]
 gatherUsageStats = false
