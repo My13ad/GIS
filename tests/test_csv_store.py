@@ -14,7 +14,7 @@ if str(SCRIPTS) not in sys.path:
 
 from gis_data import GisRow
 from gis_common import COLUMNS
-from csv_store import CsvStoreError, append_rows, delete_row, read_snapshot, update_row
+from csv_store import CsvStoreError, append_rows, delete_row, read_seed_snapshot, read_snapshot, update_row
 
 
 def row(row_id: str, city: str, longitude: float, latitude: float) -> GisRow:
@@ -93,3 +93,16 @@ def test_update_row_rejects_missing_or_changed_stable_id(tmp_path: Path) -> None
         update_row(path, "missing", original)
     with pytest.raises(CsvStoreError, match="stable ID"):
         update_row(path, "XN-1", row("other", "西宁", 101.77, 36.62))
+
+
+def test_seed_snapshot_migrates_legacy_schema_only_for_initialization(tmp_path: Path) -> None:
+    path = tmp_path / "legacy.csv"
+    path.write_text(
+        "id,city,district,street,longitude,latitude,problem_type,subtype,severity,confidence,description,detected_at,data_source\n"
+        "XN-1,西宁,城西区,五四大街,101.77,36.62,盲道占用,共享单车,中,0.9,,2026-07-01 03:07:11,测试\n",
+        encoding="utf-8-sig",
+    )
+    migrated = read_seed_snapshot(path)
+    assert migrated.rows[0].description == ""
+    with pytest.raises(CsvStoreError, match="10 columns"):
+        read_snapshot(path)

@@ -8,7 +8,7 @@ import sqlite3
 from pathlib import Path
 from typing import Final
 
-from csv_store import _serialize_rows
+from csv_store import _serialize_rows, read_seed_snapshot
 from gis_data import Dataset, GisRow
 from pydantic import ValidationError
 
@@ -171,9 +171,7 @@ def migrate_csv_to_sqlite(store: SqliteRowStore, csv_path: Path) -> int:
     """Seed SQLite from the explicit CSV only when the database is empty."""
     if not store.is_empty():
         return 0
-    from csv_store import read_snapshot
-
-    dataset = read_snapshot(csv_path)
+    dataset = read_seed_snapshot(csv_path)
     store.replace(dataset.rows)
     return len(dataset.rows)
 

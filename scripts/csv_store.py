@@ -14,6 +14,11 @@ from gis_data import Dataset, GisRow
 from pydantic import ValidationError
 
 EXPECTED_COLUMNS: Final = tuple(COLUMNS)
+LEGACY_COLUMNS: Final = (
+    "id", "city", "district", "street", "longitude", "latitude",
+    "problem_type", "subtype", "severity", "confidence", "description",
+    "detected_at", "data_source",
+)
 
 
 class CsvStoreError(Exception):
@@ -38,6 +43,37 @@ def read_snapshot(path: Path) -> Dataset:
         return Dataset(_read_rows_for_store(path))
     except (UnicodeDecodeError, ValidationError, ValueError, csv.Error) as error:
         raise CsvStoreError("invalid_csv", str(error)) from error
+
+
+def read_seed_snapshot(path: Path) -> Dataset:
+    """Read the seed CSV, migrating the previous 13-column template if needed.
+
+    User uploads remain strict through :func:`gis_data.parse_csv_bytes`; this
+    compatibility path only prevents an old bundled/ephemeral seed file from
+    blocking first-time database initialization after a schema upgrade.
+    """
+    try:
+        return read_snapshot(path)
+    except CsvStoreError as error:
+        if error.code != "columns" or not path.exists():
+            raise
+    try:
+        text = path.read_bytes().decode("utf-8-sig")
+    except UnicodeDecodeError as error:
+        raise CsvStoreError("invalid_csv", "CSV must be UTF-8 or UTF-8 with BOM") from error
+    reader = csv.DictReader(io.StringIO(text, newline=""))
+    if tuple(reader.fieldnames or ()) != LEGACY_COLUMNS:
+        raise CsvStoreError("columns", "CSV must contain the exact 10 columns in order")
+    rows: list[GisRow] = []
+    for row_number, raw_row in enumerate(reader, start=2):
+        if None in raw_row:
+            raise CsvStoreError("row", "CSV row contains more values than the legacy schema", row_number)
+        values = {key: value for key, value in raw_row.items() if key in EXPECTED_COLUMNS}
+        try:
+            rows.append(GisRow.model_validate(values))
+        except ValidationError as error:
+            raise CsvStoreError("row", f"invalid row {row_number}: {error}") from error
+    return Dataset(tuple(rows))
 
 
 def append_rows(path: Path, rows: Iterable[GisRow]) -> None:

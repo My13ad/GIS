@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Final
 
-from csv_store import _serialize_rows, read_snapshot
+from csv_store import _serialize_rows, read_seed_snapshot
 from gis_data import Dataset, GisRow
 from pydantic import ValidationError
 
@@ -182,7 +182,7 @@ def migrate_csv_to_postgres(store: PostgresRowStore, csv_path: Path) -> int:
     """Seed PostgreSQL once from the explicit CSV when the table is empty."""
     if not store.is_empty():
         return 0
-    dataset = read_snapshot(csv_path)
+    dataset = read_seed_snapshot(csv_path)
     store.replace(dataset.rows)
     return len(dataset.rows)
 
