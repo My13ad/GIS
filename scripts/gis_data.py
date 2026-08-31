@@ -30,24 +30,8 @@ class ProblemType(StrEnum):
     PLANNING = "规划问题"
 
 
-class Subtype(StrEnum):
-    SHARED_BICYCLE = "共享单车"
-    PRIVATE_CAR = "私家车"
-    STALL = "杂物摊位"
-    MISSING_BRICK = "砖块缺失"
-    INTERRUPTED = "线路中断"
-    WINDING = "线路曲折"
-
-
-class Severity(StrEnum):
-    LOW = "低"
-    MEDIUM = "中"
-    HIGH = "高"
-
-
 Longitude = Annotated[float, Field(ge=-180, le=180, allow_inf_nan=False)]
 Latitude = Annotated[float, Field(ge=-90, le=90, allow_inf_nan=False)]
-Confidence = Annotated[float, Field(ge=0.75, le=0.99, allow_inf_nan=False)]
 NonEmpty = Annotated[str, Field(min_length=1)]
 
 
@@ -63,10 +47,7 @@ class GisRow(BaseModel):
     longitude: Longitude
     latitude: Latitude
     problem_type: NonEmpty
-    subtype: NonEmpty
-    severity: NonEmpty
-    confidence: Confidence
-    description: NonEmpty
+    description: str = ""
     detected_at: datetime
     data_source: NonEmpty
 
@@ -113,7 +94,7 @@ def parse_csv_bytes(payload: bytes, *, require_both_cities: bool = True) -> Data
 
     reader = csv.DictReader(io.StringIO(text, newline=""))
     if tuple(reader.fieldnames or ()) != EXPECTED_COLUMNS:
-        raise CsvDatasetError("columns", "CSV must contain the exact 13 columns in order")
+        raise CsvDatasetError("columns", "CSV must contain the exact 10 columns in order")
 
     rows: list[GisRow] = []
     identifiers: set[str] = set()
@@ -122,7 +103,7 @@ def parse_csv_bytes(payload: bytes, *, require_both_cities: bool = True) -> Data
             if row_number > MAX_ROWS + 1:
                 raise CsvDatasetError("row_count", f"maximum is {MAX_ROWS} rows")
             if None in raw_row:
-                raise CsvDatasetError("row", "CSV row contains more values than the 13-column schema", row_number)
+                raise CsvDatasetError("row", "CSV row contains more values than the 10-column schema", row_number)
             try:
                 row = GisRow.model_validate(raw_row)
             except ValidationError as error:

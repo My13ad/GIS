@@ -211,7 +211,7 @@ def load_management_rows() -> tuple[GisRow, ...]:
 
 
 def filter_management_rows(
-    rows: tuple[GisRow, ...], search: str, city: str, severity: str
+    rows: tuple[GisRow, ...], search: str, city: str
 ) -> tuple[GisRow, ...]:
     """Filter rows while preserving their stable source order."""
     needle = search.strip().lower()
@@ -219,7 +219,6 @@ def filter_management_rows(
         row for row in rows
         if (not needle or needle in row.model_dump_json().lower())
         and (city == "全部" or row.city.value == city)
-        and (severity == "全部" or row.severity == severity)
     )
 
 
@@ -312,7 +311,7 @@ def load_active() -> ActiveMap:
     upload = st.file_uploader(
         f"导入 CSV 到 {storage_backend_name()}",
         type=("csv",),
-        help="UTF-8 编码，最大 5 MiB，列名和顺序须符合 13 列契约。",
+        help="UTF-8 编码，最大 5 MiB，列名和顺序须符合 10 列契约。",
         key="delivery-csv",
     )
     if upload is not None:
@@ -355,12 +354,10 @@ def render_inspection(active: ActiveMap) -> None:
     """Render compact inspection rows instead of presentation metric cards."""
     rows = active.prepared.dataset.rows
     cities = sorted({row.city.value for row in rows})
-    high_severity = sum(row.severity == "高" for row in rows)
     st.markdown(
         '<div class="inspection-list">'
         f'<div class="inspection-row"><span>记录数</span><strong>{len(rows)}</strong></div>'
         f'<div class="inspection-row"><span>覆盖城市</span><strong>{len(cities)}</strong></div>'
-        f'<div class="inspection-row"><span>高严重度</span><strong>{high_severity}</strong></div>'
         f'<div class="inspection-row"><span>坐标参考</span><strong>{GCJ02_LABEL}</strong></div>'
         "</div>",
         unsafe_allow_html=True,
@@ -515,7 +512,6 @@ def render_management_page() -> None:
         st.caption("表格数据会持久化到 Postgres；图片附件仍需对象存储才能跨重启保存。")
     search = st.text_input("搜索", placeholder="ID、街道、描述")
     city = st.selectbox("城市", ["全部", "西宁", "格尔木"])
-    severity = st.selectbox("严重度", ["全部", "低", "中", "高"])
     uploaded_csv = st.file_uploader(
         f"导入 CSV 到 {backend_label}", type=("csv",), key="management-csv"
     )
@@ -537,9 +533,6 @@ def render_management_page() -> None:
                 "longitude": st.number_input("经度", value=101.77, format="%.6f", key="manual-longitude"),
                 "latitude": st.number_input("纬度", value=36.62, format="%.6f", key="manual-latitude"),
                 "problem_type": st.text_input("问题类型"),
-                "subtype": st.text_input("子类型"),
-                "severity": st.text_input("严重度"),
-                "confidence": st.number_input("置信度", min_value=0.75, max_value=0.99, value=0.8, step=0.01),
                 "description": st.text_input("描述"),
                 "detected_at": st.text_input("检测时间", value=datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
                 "data_source": st.text_input("数据来源", value="manual"),
@@ -574,18 +567,17 @@ def render_management_page() -> None:
     except STORE_ERRORS as error:
         st.error(f"读取数据失败：{error}")
         return
-    filtered = filter_management_rows(rows, search, city, severity)
+    filtered = filter_management_rows(rows, search, city)
     if not rows:
         st.info(
-            f"当前 {backend_label} 为空。请导入符合 13 列契约的 CSV，或展开“新增记录”手动录入第一条数据。"
+            f"当前 {backend_label} 为空。请导入符合 10 列契约的 CSV，或展开“新增记录”手动录入第一条数据。"
         )
         return
-    st.markdown('<div class="library-header"><span>记录</span><span>严重度</span><span>操作</span></div>', unsafe_allow_html=True)
+    st.markdown('<div class="library-header"><span>记录</span><span>操作</span></div>', unsafe_allow_html=True)
     for row in filtered:
-        columns = st.columns((8, 2, 2))
+        columns = st.columns((9, 3))
         columns[0].write(f"{row.id} · {row.city.value} · {row.street}\n{row.description}")
-        columns[1].caption(row.severity)
-        with columns[2]:
+        with columns[1]:
             action_attach, action_delete = st.columns(2)
             with action_attach:
                 attach_button, edit_button = st.columns(2)
@@ -613,9 +605,6 @@ def render_management_page() -> None:
                     "longitude": st.number_input("经度", value=row.longitude, format="%.6f"),
                     "latitude": st.number_input("纬度", value=row.latitude, format="%.6f"),
                     "problem_type": st.text_input("问题类型", value=row.problem_type),
-                    "subtype": st.text_input("子类型", value=row.subtype),
-                    "severity": st.text_input("严重度", value=row.severity),
-                    "confidence": st.number_input("置信度", min_value=0.75, max_value=0.99, value=row.confidence, step=0.01),
                     "description": st.text_input("描述", value=row.description),
                     "detected_at": st.text_input("检测时间", value=row.detected_at.strftime("%Y-%m-%d %H:%M:%S")),
                     "data_source": st.text_input("数据来源", value=row.data_source),

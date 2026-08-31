@@ -12,11 +12,11 @@ SCRIPTS = ROOT / "scripts"
 if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
-from gis_data import CsvDatasetError, Dataset, parse_csv_bytes
+from gis_data import CsvDatasetError, Dataset, GisRow, parse_csv_bytes
 
 COLUMNS = (
     "id", "city", "district", "street", "longitude", "latitude",
-    "problem_type", "subtype", "severity", "confidence", "description",
+    "problem_type", "description",
     "detected_at", "data_source",
 )
 
@@ -32,8 +32,8 @@ def csv_bytes(*rows: tuple[str, ...], bom: bool = False) -> bytes:
 
 def valid_rows() -> tuple[tuple[str, ...], tuple[str, ...]]:
     return (
-        ("XN-1", "西宁", "城西区", "五四大街", "101.77", "36.62", "盲道占用", "共享单车", "中", "0.9", "占用盲道", "2026-07-01T03:07:11", "上传数据"),
-        ("GL-1", "格尔木", "昆仑路街道", "昆仑路", "94.90", "36.40", "规划问题", "线路中断", "高", "0.99", "线路中断", "2026-07-02 10:20:16", "上传数据"),
+        ("XN-1", "西宁", "城西区", "五四大街", "101.77", "36.62", "盲道占用", "占用盲道", "2026-07-01T03:07:11", "上传数据"),
+        ("GL-1", "格尔木", "昆仑路街道", "昆仑路", "94.90", "36.40", "规划问题", "线路中断", "2026-07-02 10:20:16", "上传数据"),
     )
 
 
@@ -77,15 +77,24 @@ def test_parse_trims_and_accepts_unknown_taxonomy_values() -> None:
     # Given
     row = valid_rows()[0]
     payload = csv_bytes(
-        replace(replace(replace(row, "problem_type", "  路口遮挡  "), "subtype", "  临时施工  "), "severity", "  紧急  "),
+        replace(row, "problem_type", "  路口遮挡  "),
         valid_rows()[1],
     )
     # When
     parsed = parse_csv_bytes(payload)
     # Then
     assert parsed.rows[0].problem_type == "路口遮挡"
-    assert parsed.rows[0].subtype == "临时施工"
-    assert parsed.rows[0].severity == "紧急"
+    assert parsed.rows[0].description == "占用盲道"
+
+
+def test_parse_accepts_empty_description() -> None:
+    first, second = valid_rows()
+    parsed = parse_csv_bytes(csv_bytes(replace(first, "description", ""), second))
+    assert parsed.rows[0].description == ""
+
+
+def test_row_schema_contains_only_current_fields() -> None:
+    assert tuple(GisRow.model_fields) == COLUMNS
 
 
 @pytest.mark.parametrize(
@@ -98,20 +107,15 @@ def test_parse_trims_and_accepts_unknown_taxonomy_values() -> None:
         (csv_bytes(valid_rows()[0], replace(valid_rows()[1], "id", "XN-1")), "duplicate_id"),
         (csv_bytes(replace(valid_rows()[0], "city", "北京"), valid_rows()[1]), "row"),
         (csv_bytes(replace(valid_rows()[0], "problem_type", "   "), valid_rows()[1]), "row"),
-        (csv_bytes(replace(valid_rows()[0], "subtype", "   "), valid_rows()[1]), "row"),
         (csv_bytes(replace(valid_rows()[0], "longitude", "nan"), valid_rows()[1]), "row"),
         (csv_bytes(replace(valid_rows()[0], "latitude", "91"), valid_rows()[1]), "row"),
         (csv_bytes(replace(valid_rows()[0], "longitude", "100"), valid_rows()[1]), "row"),
-        (csv_bytes(replace(valid_rows()[0], "confidence", "0.74"), valid_rows()[1]), "row"),
-        (csv_bytes(replace(valid_rows()[0], "confidence", "1.0"), valid_rows()[1]), "row"),
-        (csv_bytes(replace(valid_rows()[0], "confidence", "1.1"), valid_rows()[1]), "row"),
         (csv_bytes(replace(valid_rows()[0], "detected_at", "yesterday"), valid_rows()[1]), "row"),
     ],
     ids=(
         "columns", "file-size", "row-count", "both-cities", "duplicate-id",
-        "city-enum", "problem-empty", "subtype-empty", "finite-coordinate",
-        "wgs84-coordinate", "city-coordinate", "confidence-low", "confidence-high",
-        "confidence-global", "iso-timestamp",
+        "city-enum", "problem-empty", "finite-coordinate", "wgs84-coordinate",
+        "city-coordinate", "iso-timestamp",
     ),
 )
 def test_parse_rejects_invalid_uploads_with_specific_error(payload: bytes, code: str) -> None:

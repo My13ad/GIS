@@ -1,1 +1,1 @@
-﻿id,city,district,street,longitude,latitude,problem_type,subtype,severity,confidence,description,detected_at,data_source
+﻿id,city,district,street,longitude,latitude,problem_type,description,detected_at,data_source

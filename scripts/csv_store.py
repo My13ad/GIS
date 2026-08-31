@@ -89,7 +89,7 @@ def _read_rows_for_store(path: Path) -> tuple[GisRow, ...]:
     text = path.read_bytes().decode("utf-8-sig")
     reader = csv.DictReader(io.StringIO(text, newline=""))
     if tuple(reader.fieldnames or ()) != EXPECTED_COLUMNS:
-        raise CsvStoreError("columns", "CSV must contain the exact 13 columns in order")
+        raise CsvStoreError("columns", "CSV must contain the exact 10 columns in order")
     rows: list[GisRow] = []
     for row_number, raw_row in enumerate(reader, start=2):
         try:

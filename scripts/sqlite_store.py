@@ -15,14 +15,13 @@ from pydantic import ValidationError
 TABLE: Final = "gis_rows"
 COLUMNS: Final = (
     "id", "city", "district", "street", "longitude", "latitude",
-    "problem_type", "subtype", "severity", "confidence", "description",
+    "problem_type", "description",
     "detected_at", "data_source",
 )
 CREATE_TABLE: Final = """CREATE TABLE IF NOT EXISTS gis_rows (
     id TEXT PRIMARY KEY, city TEXT NOT NULL, district TEXT NOT NULL,
     street TEXT NOT NULL, longitude REAL NOT NULL, latitude REAL NOT NULL,
-    problem_type TEXT NOT NULL, subtype TEXT NOT NULL, severity TEXT NOT NULL,
-    confidence REAL NOT NULL, description TEXT NOT NULL, detected_at TEXT NOT NULL,
+    problem_type TEXT NOT NULL, description TEXT NOT NULL, detected_at TEXT NOT NULL,
     data_source TEXT NOT NULL, position INTEGER NOT NULL UNIQUE
 )"""
 
@@ -46,7 +45,47 @@ class SqliteRowStore:
         self.database = database
         self.database.parent.mkdir(parents=True, exist_ok=True)
         with self._connect() as connection:
+            self._ensure_schema(connection)
+
+    @staticmethod
+    def _ensure_schema(connection: sqlite3.Connection) -> None:
+        """Create the current table or migrate the pre-10-column schema."""
+        table = connection.execute(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (TABLE,)
+        ).fetchone()
+        if table is None:
             connection.execute(CREATE_TABLE)
+            return
+
+        existing = {
+            str(row[1])
+            for row in connection.execute(f"PRAGMA table_info({TABLE})").fetchall()
+        }
+        expected = set(COLUMNS) | {"position"}
+        if existing == expected:
+            return
+
+        # Rebuild the table so old subtype/severity/confidence columns are
+        # dropped while preserving all fields that remain in the contract.
+        legacy_table = f"{TABLE}_legacy"
+        connection.execute(f"DROP TABLE IF EXISTS {legacy_table}")
+        connection.execute(f"ALTER TABLE {TABLE} RENAME TO {legacy_table}")
+        connection.execute(CREATE_TABLE)
+        source_columns = [column for column in COLUMNS if column in existing]
+        if "position" in existing:
+            source_columns.append("position")
+            select_columns = ", ".join(source_columns)
+            order_clause = "position"
+        else:
+            source_columns.append("position")
+            select_columns = ", ".join(source_columns[:-1]) + ", rowid - 1"
+            order_clause = "rowid"
+        target_columns = ", ".join(source_columns)
+        connection.execute(
+            f"INSERT INTO {TABLE} ({target_columns}) SELECT {select_columns} "
+            f"FROM {legacy_table} ORDER BY {order_clause}"
+        )
+        connection.execute(f"DROP TABLE {legacy_table}")
 
     def _connect(self) -> sqlite3.Connection:
         connection = sqlite3.connect(self.database)
@@ -103,12 +142,27 @@ class SqliteRowStore:
             raise SqliteStoreError("duplicate_id", "duplicate stable ID")
 
     def _replace(self, rows: tuple[GisRow, ...]) -> None:
-        values = [tuple(row.model_dump(mode="json").values()) + (index,) for index, row in enumerate(rows)]
+        values = [
+            (
+                row.id,
+                row.city.value,
+                row.district,
+                row.street,
+                row.longitude,
+                row.latitude,
+                row.problem_type,
+                row.description,
+                row.detected_at,
+                row.data_source,
+                index,
+            )
+            for index, row in enumerate(rows)
+        ]
         with self._connect() as connection:
             connection.execute("DELETE FROM gis_rows")
             if values:
                 connection.executemany(
-                    "INSERT INTO gis_rows (id, city, district, street, longitude, latitude, problem_type, subtype, severity, confidence, description, detected_at, data_source, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    "INSERT INTO gis_rows (id, city, district, street, longitude, latitude, problem_type, description, detected_at, data_source, position) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                     values,
                 )
 

@@ -19,7 +19,7 @@ for path in (ROOT, SCRIPTS):
 
 import streamlit_app
 from export_png import ExportRequest, StaticArtifact
-from gis_data import City, CsvDatasetError, GisRow, Severity
+from gis_data import City, CsvDatasetError, GisRow
 from test_gis_data import csv_bytes, valid_rows
 from ui_styles import WORKBENCH_CSS
 
@@ -120,7 +120,7 @@ def test_view_page_has_return_button_and_map_only() -> None:
 
 def test_view_page_explains_empty_dataset_without_preparing_map() -> None:
     # Given
-    empty_csv = b"\xef\xbb\xbfid,city,district,street,longitude,latitude,problem_type,subtype,severity,confidence,description,detected_at,data_source\n"
+    empty_csv = b"\xef\xbb\xbfid,city,district,street,longitude,latitude,problem_type,description,detected_at,data_source\n"
     streamlit_app.CANONICAL_CSV.write_bytes(empty_csv)
     streamlit_app.ensure_sqlite_store().replace(())
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=60).run()
@@ -170,7 +170,7 @@ def test_management_page_has_search_filters_rows_and_return_button() -> None:
 
 def test_management_page_is_actionable_when_canonical_dataset_is_empty() -> None:
     # Given
-    empty_csv = b"\xef\xbb\xbfid,city,district,street,longitude,latitude,problem_type,subtype,severity,confidence,description,detected_at,data_source\n"
+    empty_csv = b"\xef\xbb\xbfid,city,district,street,longitude,latitude,problem_type,description,detected_at,data_source\n"
     streamlit_app.CANONICAL_CSV.write_bytes(empty_csv)
     streamlit_app.ensure_sqlite_store().replace(())
     app = AppTest.from_file(ROOT / "streamlit_app.py", default_timeout=60).run()
@@ -204,7 +204,7 @@ def test_management_helpers_search_and_filter_canonical_rows() -> None:
     # Given
     rows = streamlit_app.load_management_rows()
     # When
-    filtered = streamlit_app.filter_management_rows(rows, "XN-1", "西宁", "全部")
+    filtered = streamlit_app.filter_management_rows(rows, "XN-1", "西宁")
     # Then
     assert [row.id for row in filtered] == ["XN-1"]
 
@@ -253,9 +253,6 @@ def test_append_manual_row_updates_canonical_source(tmp_path: Path, monkeypatch:
         "longitude": 101.77,
         "latitude": 36.62,
         "problem_type": "盲道占用",
-        "subtype": "共享单车",
-        "severity": Severity.LOW,
-        "confidence": 0.8,
         "description": "手动录入",
         "detected_at": "2026-01-01 10:00:00",
         "data_source": "manual",
@@ -292,8 +289,9 @@ def test_management_source_exposes_edit_form_and_text_taxonomy_inputs() -> None:
     # Then
     assert "编辑" in source
     assert 'st.text_input("问题类型"' in source
-    assert 'st.text_input("子类型"' in source
-    assert 'st.text_input("严重度"' in source
+    assert 'st.text_input("子类型"' not in source
+    assert 'st.text_input("严重度"' not in source
+    assert 'st.number_input("置信度"' not in source
 
 
 def test_delete_invalidates_cache_and_rebuilds_active_map(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -479,7 +477,7 @@ def test_download_page_keeps_png_export_and_management_page_has_no_downloads() -
 def test_management_actions_are_declared_as_horizontal_row_controls() -> None:
     source = Path(streamlit_app.__file__).read_text(encoding="utf-8")
     assert 'action_attach, action_delete = st.columns(2)' in source
-    assert 'columns = st.columns((8, 2, 2))' in source
+    assert 'columns = st.columns((9, 3))' in source
     assert 'append_uploaded_rows(uploaded_csv.getvalue())' in source
 
 

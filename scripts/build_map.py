@@ -8,7 +8,7 @@ renders ``output/<Chinese-named>.html``:
 - one Marker per CSV row, colored by problem_type, grouped per city inside
   FeatureGroup -> MarkerCluster so city toggling and clustering both work
 - rich Chinese HTML popups with every CSV field
-- a severity-weighted HeatMap overlay (hidden by default, toggleable)
+- a uniform-weight HeatMap overlay (hidden by default, toggleable)
 - expanded LayerControl + fixed title / legend / disclaimer overlays
 
 Console output is ASCII-only (GBK console); Chinese lives in the HTML file.
@@ -23,7 +23,6 @@ _SCRIPTS = _ROOT / "scripts"
 if str(_SCRIPTS) not in sys.path:
     sys.path.insert(0, str(_SCRIPTS))
 
-from gis_common import CITY_BOUNDS, SEVERITY_WEIGHT  # noqa: E402
 from gis_data import Dataset, GisRow, parse_csv_bytes  # noqa: E402
 from amap_config import AMapConfig, load_amap_config  # noqa: E402
 from amap_html import build_amap_html  # noqa: E402
@@ -41,9 +40,6 @@ POPUP_FIELDS = [
     ("区域", "district"),
     ("街道", "street"),
     ("问题类型", "problem_type"),
-    ("子类型", "subtype"),
-    ("严重程度", "severity"),
-    ("置信度", "confidence"),
     ("描述", "description"),
     ("检测时间", "detected_at"),
     ("数据来源", "data_source"),

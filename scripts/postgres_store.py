@@ -12,18 +12,23 @@ from pydantic import ValidationError
 TABLE: Final = "gis_rows"
 COLUMNS: Final = (
     "id", "city", "district", "street", "longitude", "latitude",
-    "problem_type", "subtype", "severity", "confidence", "description",
+    "problem_type", "description",
     "detected_at", "data_source",
 )
 CREATE_TABLE: Final = """CREATE TABLE IF NOT EXISTS gis_rows (
     id TEXT PRIMARY KEY, city TEXT NOT NULL, district TEXT NOT NULL,
     street TEXT NOT NULL, longitude DOUBLE PRECISION NOT NULL,
     latitude DOUBLE PRECISION NOT NULL, problem_type TEXT NOT NULL,
-    subtype TEXT NOT NULL, severity TEXT NOT NULL,
-    confidence DOUBLE PRECISION NOT NULL, description TEXT NOT NULL,
+    description TEXT NOT NULL,
     detected_at TIMESTAMP WITHOUT TIME ZONE NOT NULL, data_source TEXT NOT NULL,
     position INTEGER NOT NULL UNIQUE
 )"""
+MIGRATE_OLD_COLUMNS: Final = """
+ALTER TABLE IF EXISTS gis_rows
+    DROP COLUMN IF EXISTS subtype,
+    DROP COLUMN IF EXISTS severity,
+    DROP COLUMN IF EXISTS confidence
+"""
 
 
 class PostgresStoreError(Exception):
@@ -48,6 +53,7 @@ class PostgresRowStore:
         self.sslmode = sslmode
         try:
             with self._connect() as connection:
+                connection.execute(MIGRATE_OLD_COLUMNS)
                 connection.execute(CREATE_TABLE)
         except PostgresStoreError:
             raise
@@ -92,7 +98,7 @@ class PostgresRowStore:
             with self._connect() as connection:
                 records = connection.execute(
                     "SELECT id, city, district, street, longitude, latitude, "
-                    "problem_type, subtype, severity, confidence, description, "
+                    "problem_type, description, "
                     "detected_at, data_source FROM gis_rows ORDER BY position"
                 ).fetchall()
         except PostgresStoreError:
@@ -148,9 +154,6 @@ class PostgresRowStore:
                 row.longitude,
                 row.latitude,
                 row.problem_type,
-                row.subtype,
-                row.severity,
-                row.confidence,
                 row.description,
                 row.detected_at,
                 row.data_source,
@@ -165,8 +168,8 @@ class PostgresRowStore:
                     with connection.cursor() as cursor:
                         cursor.executemany(
                             "INSERT INTO gis_rows (id, city, district, street, longitude, latitude, "
-                            "problem_type, subtype, severity, confidence, description, detected_at, "
-                            "data_source, position) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                            "problem_type, description, detected_at, data_source, position) "
+                            "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)",
                             values,
                         )
         except PostgresStoreError:

@@ -103,9 +103,6 @@ def test_build_amap_html_uses_payload_values_and_deterministic_unknown_fallbacks
         "longitude": 101.77,
         "latitude": 36.62,
         "problem_type": "路口遮挡",
-        "subtype": "临时施工",
-        "severity": "紧急",
-        "confidence": 0.8,
         "description": "自定义分类",
         "detected_at": "2026-01-01 10:00:00",
         "data_source": "manual",
@@ -114,9 +111,10 @@ def test_build_amap_html_uses_payload_values_and_deterministic_unknown_fallbacks
     html = build_amap_html(Dataset((row,)), AMapConfig("public-key", "security-code"))
     # Then
     assert '"problem_type":"路口遮挡"' in html
-    assert '"subtype":"临时施工"' in html
-    assert '"severity":"紧急"' in html
     assert '"color":"gray"' in html
-    assert '"weight":0.5' in html
+    assert '"weight":1.0' in html
+    assert '"subtype"' not in html
+    assert '"severity"' not in html
+    assert '"confidence"' not in html
     assert "weight:item.weight" in html
     assert "background:${item.color}" in html

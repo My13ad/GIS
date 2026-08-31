@@ -59,30 +59,6 @@ DISTRICTS = {
     "格尔木": ["昆仑路街道", "黄河路街道", "金峰路街道"],
 }
 
-# --- Taxonomy -----------------------------------------------------------
-PROBLEM_TYPES = ["盲道占用", "盲道破损", "规划问题"]
-
-SUBTYPES = [
-    "共享单车",
-    "私家车",
-    "杂物摊位",
-    "砖块缺失",
-    "线路中断",
-    "线路曲折",
-]
-
-# (problem_type -> allowed subtypes) -- the swap contract for real data.
-PROBLEM_SUBTYPE_MAP = {
-    "盲道占用": ["共享单车", "私家车", "杂物摊位"],
-    "盲道破损": ["砖块缺失"],
-    "规划问题": ["线路中断", "线路曲折"],
-}
-
-SEVERITIES = ["低", "中", "高"]
-
-# Reference weights for heatmap rendering (severity -> intensity).
-SEVERITY_WEIGHT = {"低": 0.4, "中": 0.7, "高": 1.0}
-
 # --- Frozen CSV schema (the swap contract for real data) ----------------
 COLUMNS = [
     "id",
@@ -92,9 +68,6 @@ COLUMNS = [
     "longitude",
     "latitude",
     "problem_type",
-    "subtype",
-    "severity",
-    "confidence",
     "description",
     "detected_at",
     "data_source",

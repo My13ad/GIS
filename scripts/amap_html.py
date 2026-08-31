@@ -12,11 +12,8 @@ from collections.abc import Mapping
 from gis_data import Dataset, GisRow
 from amap_config import AMapConfig
 from image_store import ImageMetadata
-from gis_common import SEVERITY_WEIGHT
-
 PROBLEM_COLOR_FALLBACK: Final = "gray"
 PROBLEM_COLORS: Final = {"盲道占用": "orange", "盲道破损": "red", "规划问题": "purple"}
-SEVERITY_WEIGHT_FALLBACK: Final = 0.5
 
 
 def _problem_color(problem_type: str) -> str:
@@ -24,14 +21,9 @@ def _problem_color(problem_type: str) -> str:
     return PROBLEM_COLORS.get(problem_type, PROBLEM_COLOR_FALLBACK)
 
 
-def _severity_weight(severity: str) -> float:
-    """Return the stable heatmap weight for a known or custom severity."""
-    return SEVERITY_WEIGHT.get(severity, SEVERITY_WEIGHT_FALLBACK)
-
 MAP_FIELDS: Final = (
     ("编号", "id"), ("城市", "city"), ("区域", "district"), ("街道", "street"),
-    ("问题类型", "problem_type"), ("子类型", "subtype"), ("严重程度", "severity"),
-    ("置信度", "confidence"), ("描述", "description"), ("检测时间", "detected_at"),
+    ("问题类型", "problem_type"), ("描述", "description"), ("检测时间", "detected_at"),
     ("数据来源", "data_source"),
 )
 
@@ -73,11 +65,10 @@ def build_amap_html(
             "city": row.city.value,
             "longitude": row.longitude,
             "latitude": row.latitude,
-                "problem_type": row.problem_type,
-                "subtype": row.subtype,
-            "severity": row.severity,
+            "problem_type": row.problem_type,
             "color": _problem_color(row.problem_type),
-            "weight": _severity_weight(row.severity),
+            # All issue records use the same heatmap intensity.
+            "weight": 1.0,
             "popup": _popup(row, attachments, image_root),
         }
         for row in dataset.rows
